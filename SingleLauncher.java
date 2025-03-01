@@ -31,7 +31,9 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import javax.imageio.ImageIO;
 import javax.swing.*;
+import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -41,7 +43,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
-import javax.swing.DefaultComboBoxModel;
 
 public class SingleLauncher extends JFrame {
     private JTextField ipField;
@@ -55,28 +56,22 @@ public class SingleLauncher extends JFrame {
     public SingleLauncher() {
         super("Remote Desktop Launcher");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(320, 150);
+        setSize(320,150);
         setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5,5,5,5);
         JLabel ipLabel = new JLabel("Client Connect IP:");
-        ipField = new JTextField("127.0.0.1", 10);
+        ipField = new JTextField("127.0.0.1",10);
         JLabel portLabel = new JLabel("Port:");
-        portField = new JTextField("5000", 5);
+        portField = new JTextField("5000",5);
         JButton hostButton = new JButton("Start Host");
         JButton clientButton = new JButton("Start Client");
-        gbc.gridx = 0; gbc.gridy = 0;
-        add(ipLabel, gbc);
-        gbc.gridx = 1;
-        add(ipField, gbc);
-        gbc.gridx = 0; gbc.gridy = 1;
-        add(portLabel, gbc);
-        gbc.gridx = 1;
-        add(portField, gbc);
-        gbc.gridx = 0; gbc.gridy = 2;
-        add(hostButton, gbc);
-        gbc.gridx = 1;
-        add(clientButton, gbc);
+        gbc.gridx = 0; gbc.gridy = 0; add(ipLabel,gbc);
+        gbc.gridx = 1; add(ipField,gbc);
+        gbc.gridx = 0; gbc.gridy = 1; add(portLabel,gbc);
+        gbc.gridx = 1; add(portField,gbc);
+        gbc.gridx = 0; gbc.gridy = 2; add(hostButton,gbc);
+        gbc.gridx = 1; add(clientButton,gbc);
         hostButton.addActionListener((ActionEvent e) -> {
             setVisible(false);
             SwingUtilities.invokeLater(() -> {
@@ -103,13 +98,13 @@ public class SingleLauncher extends JFrame {
         public HostGUI(int port) {
             super("Host – Remote Desktop");
             setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            setSize(1000, 700);
+            setSize(1000,700);
             setLayout(new BorderLayout());
             this.listeningPort = port;
             String localIp = "Unknown";
             try { localIp = InetAddress.getLocalHost().getHostAddress(); } catch(UnknownHostException ex) {}
             JLabel hostIpLabel = new JLabel("Hosting on IP: " + localIp + "   Port: " + listeningPort, SwingConstants.CENTER);
-            JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+            JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.CENTER,10,5));
             JLabel connLabel = new JLabel("Connections:");
             clientCombo = new JComboBox<>();
             JButton openChatBtn = new JButton("Open Chat");
@@ -141,9 +136,9 @@ public class SingleLauncher extends JFrame {
             topPanel.add(stopConnBtn);
             topPanel.add(sendFileButton);
             JPanel northPanel = new JPanel(new BorderLayout());
-            northPanel.add(hostIpLabel, BorderLayout.NORTH);
-            northPanel.add(topPanel, BorderLayout.SOUTH);
-            add(northPanel, BorderLayout.NORTH);
+            northPanel.add(hostIpLabel,BorderLayout.NORTH);
+            northPanel.add(topPanel,BorderLayout.SOUTH);
+            add(northPanel,BorderLayout.NORTH);
             screenLabel = new JLabel();
             screenLabel.setHorizontalAlignment(SwingConstants.CENTER);
             screenLabel.setVerticalAlignment(SwingConstants.CENTER);
@@ -171,7 +166,7 @@ public class SingleLauncher extends JFrame {
             screenLabel.addMouseListener(new MouseAdapter(){
                 public void mouseClicked(MouseEvent e){ screenLabel.requestFocusInWindow(); }
             });
-            add(screenLabel, BorderLayout.CENTER);
+            add(screenLabel,BorderLayout.CENTER);
             serverThread = new ServerThread(listeningPort, this);
             serverThread.start();
         }
@@ -354,9 +349,9 @@ public class SingleLauncher extends JFrame {
             chatInput = new JTextField();
             sendChatButton = new JButton("Send");
             JPanel inputPanel = new JPanel(new BorderLayout());
-            inputPanel.add(chatInput, BorderLayout.CENTER);
-            inputPanel.add(sendChatButton, BorderLayout.EAST);
-            add(inputPanel, BorderLayout.SOUTH);
+            inputPanel.add(chatInput,BorderLayout.CENTER);
+            inputPanel.add(sendChatButton,BorderLayout.EAST);
+            add(inputPanel,BorderLayout.SOUTH);
             sendChatButton.addActionListener(e -> {
                 String text = chatInput.getText().trim();
                 if(!text.isEmpty()) {
@@ -375,6 +370,7 @@ public class SingleLauncher extends JFrame {
         private ObjectInputStream in;
         private Socket socket;
         private ConnectionEntry conn;
+        private ClientChatWindow chatWindow;
         public void startClient(String host, int port, ConnectionEntry conn) {
             this.conn = conn;
             try {
@@ -413,8 +409,9 @@ public class SingleLauncher extends JFrame {
                         handleRemoteEvent(evt, robot);
                     } else if(obj instanceof RemoteMessage) {
                         RemoteMessage msg = (RemoteMessage)obj;
-                        if(msg.type == RemoteMessage.MessageType.CHAT) { clientGUI.appendChatMessage("Host: " + msg.chatText); }
-                        else if(msg.type == RemoteMessage.MessageType.FILE) {
+                        if(msg.type == RemoteMessage.MessageType.CHAT) {
+                            if(chatWindow != null) { chatWindow.appendChatMessage("Host: " + msg.chatText); }
+                        } else if(msg.type == RemoteMessage.MessageType.FILE) {
                             SwingUtilities.invokeLater(() -> {
                                 int choice = JOptionPane.showConfirmDialog(clientGUI, "Host sent file: " + msg.fileName + "\nSave file?", "File received", JOptionPane.YES_NO_OPTION);
                                 if(choice == JOptionPane.YES_OPTION) {
@@ -426,7 +423,6 @@ public class SingleLauncher extends JFrame {
                                     }
                                 }
                             });
-                            clientGUI.appendChatMessage("Host sent file: " + msg.fileName);
                         }
                     }
                 }
@@ -434,9 +430,7 @@ public class SingleLauncher extends JFrame {
                 in.close();
                 out.close();
                 socket.close();
-            } catch(Exception e) {
-                conn.setOnline(false);
-            }
+            } catch(Exception e) { conn.setOnline(false); }
         }
         private void sendClientHostname() {
             try {
@@ -495,6 +489,10 @@ public class SingleLauncher extends JFrame {
                 }
             } catch(IOException ex) { return null; }
         }
+        public void openChatWindow() {
+            if(chatWindow == null) { chatWindow = new ClientChatWindow(this); }
+            if(!chatWindow.isVisible()) { chatWindow.setVisible(true); }
+        }
         public void stopConnection() {
             running = false;
             try { if(in != null) in.close(); } catch(IOException ex) {}
@@ -505,11 +503,9 @@ public class SingleLauncher extends JFrame {
         }
     }
     static class ClientGUI extends JFrame {
-        private javax.swing.JTextArea chatArea;
-        private JTextField chatInput;
-        private JButton sendChatButton;
         private JButton sendFileButton;
         private JButton stopConnButton;
+        private JButton openChatButton;
         private RemoteDesktopClient controller;
         public ClientGUI() {
             super("Client – Remote Controlled");
@@ -518,51 +514,64 @@ public class SingleLauncher extends JFrame {
             setLayout(new BorderLayout());
             JLabel infoLabel = new JLabel("Your system is being remotely controlled.", SwingConstants.CENTER);
             add(infoLabel, BorderLayout.NORTH);
-            chatArea = new javax.swing.JTextArea();
-            chatArea.setEditable(false);
-            JScrollPane chatScroll = new JScrollPane(chatArea);
-            add(chatScroll, BorderLayout.CENTER);
-            JPanel inputPanel = new JPanel(new BorderLayout());
-            chatInput = new JTextField();
-            sendChatButton = new JButton("Send");
-            sendFileButton = new JButton("Send File");
-            stopConnButton = new JButton("Stop Connection");
             JPanel btnPanel = new JPanel();
-            btnPanel.add(sendChatButton);
-            btnPanel.add(sendFileButton);
-            btnPanel.add(stopConnButton);
-            inputPanel.add(chatInput, BorderLayout.CENTER);
-            inputPanel.add(btnPanel, BorderLayout.EAST);
-            add(inputPanel, BorderLayout.SOUTH);
-            sendChatButton.addActionListener(e -> {
-                String text = chatInput.getText().trim();
-                if(!text.isEmpty()){
-                    appendChatMessage("You: " + text);
-                    if(controller != null) { controller.sendChatMessage(text); }
-                    chatInput.setText("");
-                }
+            openChatButton = new JButton("Open Chat");
+            openChatButton.addActionListener(e -> {
+                if(controller != null) { controller.openChatWindow(); }
             });
+            sendFileButton = new JButton("Send File");
             sendFileButton.addActionListener(e -> {
                 JFileChooser fc = new JFileChooser();
                 if(fc.showOpenDialog(this)==JFileChooser.APPROVE_OPTION) {
                     File file = fc.getSelectedFile();
                     final long MAX_FILE_SIZE = 10*1024*1024;
-                    if(file.length() <= MAX_FILE_SIZE) {
-                        appendChatMessage("You sent file: " + file.getName());
+                    if(file.length() <= MAX_FILE_SIZE) { 
                         if(controller != null) { controller.sendFileMessage(file); }
-                    } else {
-                        JOptionPane.showMessageDialog(this, "File exceeds 10 MB limit.");
-                    }
+                    } else { JOptionPane.showMessageDialog(this, "File exceeds 10 MB limit."); }
                 }
             });
+            stopConnButton = new JButton("Stop Connection");
             stopConnButton.addActionListener(e -> {
                 if(controller != null) { controller.stopConnection(); }
             });
+            btnPanel.add(openChatButton);
+            btnPanel.add(sendFileButton);
+            btnPanel.add(stopConnButton);
+            add(btnPanel, BorderLayout.SOUTH);
         }
         public void setController(RemoteDesktopClient c) { controller = c; }
-        public void appendChatMessage(String msg) {
-            SwingUtilities.invokeLater(() -> { chatArea.append(msg + "\n"); });
+    }
+    static class ClientChatWindow extends JFrame {
+        private javax.swing.JTextArea chatArea;
+        private JTextField chatInput;
+        private JButton sendChatButton;
+        private RemoteDesktopClient controller;
+        public ClientChatWindow(RemoteDesktopClient controller) {
+            super("Chat");
+            this.controller = controller;
+            setSize(400,300);
+            setLocationRelativeTo(null);
+            setLayout(new BorderLayout());
+            setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+            chatArea = new javax.swing.JTextArea();
+            chatArea.setEditable(false);
+            add(new JScrollPane(chatArea), BorderLayout.CENTER);
+            chatInput = new JTextField();
+            sendChatButton = new JButton("Send");
+            JPanel inputPanel = new JPanel(new BorderLayout());
+            inputPanel.add(chatInput,BorderLayout.CENTER);
+            inputPanel.add(sendChatButton,BorderLayout.EAST);
+            add(inputPanel,BorderLayout.SOUTH);
+            sendChatButton.addActionListener(e -> {
+                String text = chatInput.getText().trim();
+                if(!text.isEmpty()){
+                    appendChatMessage("You: " + text);
+                    controller.sendChatMessage(text);
+                    chatInput.setText("");
+                }
+            });
         }
+        public void appendChatMessage(String msg) { chatArea.append(msg+"\n"); }
     }
     static class RemoteEvent implements Serializable {
         enum Type { MOUSE, KEYBOARD }
@@ -606,7 +615,7 @@ public class SingleLauncher extends JFrame {
             comboModel = new DefaultComboBoxModel<>();
             connectionCombo = new JComboBox<>(comboModel);
             connectionCombo.setEditable(true);
-            portField = new JTextField("5000", 6);
+            portField = new JTextField("5000",6);
             connectBtn = new JButton("Connect");
             add(new JLabel("IP:"));
             add(connectionCombo);
@@ -617,7 +626,7 @@ public class SingleLauncher extends JFrame {
                 String ip = connectionCombo.getEditor().getItem().toString().trim();
                 int port = Integer.parseInt(portField.getText().trim());
                 boolean exists = false;
-                for(int i=0; i<comboModel.getSize(); i++){
+                for(int i=0;i<comboModel.getSize();i++){
                     ConnectionEntry entry = comboModel.getElementAt(i);
                     if(entry.getIp().equals(ip) && entry.getPort()==port){
                         exists = true;
@@ -625,17 +634,17 @@ public class SingleLauncher extends JFrame {
                     }
                 }
                 if(!exists){
-                    ConnectionEntry newEntry = new ConnectionEntry(ip, port);
+                    ConnectionEntry newEntry = new ConnectionEntry(ip,port);
                     comboModel.addElement(newEntry);
                 }
-                ConnectionEntry selected = new ConnectionEntry(ip, port);
-                for(int i=0; i<comboModel.getSize(); i++){
+                ConnectionEntry selected = new ConnectionEntry(ip,port);
+                for(int i=0;i<comboModel.getSize();i++){
                     ConnectionEntry entry = comboModel.getElementAt(i);
                     if(entry.getIp().equals(ip) && entry.getPort()==port){ selected = entry; break; }
                 }
                 setVisible(false);
                 RemoteDesktopClient client = new RemoteDesktopClient();
-                client.startClient(ip, port, selected);
+                client.startClient(ip,port,selected);
             });
         }
     }
