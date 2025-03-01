@@ -1,29 +1,24 @@
-import javax.swing.*;
-import javax.swing.event.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.*;
-import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
-import java.awt.Robot;
-import java.awt.datatransfer.*;
-import java.util.*;
-import java.awt.event.InputEvent;
-import java.awt.event.KeyEvent;
+import javax.swing.*;
+import javax.swing.event.*;
 
 public class SingleLauncher extends JFrame {
-    
+
     private JTextField ipField;
     private JTextField portField;
-    
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             SingleLauncher launcher = new SingleLauncher();
             launcher.setVisible(true);
         });
     }
-    
+
     public SingleLauncher() {
         super("Remote Desktop Launcher");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -31,7 +26,7 @@ public class SingleLauncher extends JFrame {
         setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5,5,5,5);
-        
+
         // Minimal launcher: fields for host IP & port plus two buttons.
         JLabel ipLabel = new JLabel("Client Connect IP:");
         ipField = new JTextField("127.0.0.1", 10);
@@ -39,7 +34,7 @@ public class SingleLauncher extends JFrame {
         portField = new JTextField("5000", 5);
         JButton hostButton = new JButton("Start Host");
         JButton clientButton = new JButton("Start Client");
-        
+
         gbc.gridx=0; gbc.gridy=0;
         add(ipLabel, gbc);
         gbc.gridx=1;
@@ -52,7 +47,7 @@ public class SingleLauncher extends JFrame {
         add(hostButton, gbc);
         gbc.gridx=1;
         add(clientButton, gbc);
-        
+
         // Actions:
         hostButton.addActionListener(e -> {
             setVisible(false);
@@ -63,7 +58,7 @@ public class SingleLauncher extends JFrame {
                 hostGUI.setVisible(true);
             });
         });
-        
+
         clientButton.addActionListener(e -> {
             setVisible(false);
             String hostIP = ipField.getText().trim();
@@ -74,13 +69,11 @@ public class SingleLauncher extends JFrame {
             }).start();
         });
     }
-    
+
     // ──────────────────────────────────────────────────────
     // HOST SIDE CLASSES
     // ──────────────────────────────────────────────────────
-    
-    // HostGUI: shows list of clients on the left, remote screen on the center,
-    // and a chat panel at the bottom to exchange chat messages/files with the selected client.
+
     static class HostGUI extends JFrame {
         private DefaultListModel<ClientHandler> clientListModel;
         private JList<ClientHandler> clientJList;
@@ -90,15 +83,15 @@ public class SingleLauncher extends JFrame {
         private JTextField chatInput;
         private JButton sendChatButton;
         private JButton sendFileButton;
-        
+
         private ServerThread serverThread;
-        
+
         public HostGUI() {
             super("Host – Remote Desktop");
             setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             setSize(1000, 700);
             setLayout(new BorderLayout());
-            
+
             // Left panel: List of connected clients
             clientListModel = new DefaultListModel<>();
             clientJList = new JList<>(clientListModel);
@@ -119,13 +112,14 @@ public class SingleLauncher extends JFrame {
             JScrollPane listScroll = new JScrollPane(clientJList);
             listScroll.setPreferredSize(new Dimension(200, getHeight()));
             add(listScroll, BorderLayout.WEST);
-            
+
             // Center panel: Remote screen display (scaled image)
             screenLabel = new JLabel();
             screenLabel.setHorizontalAlignment(SwingConstants.CENTER);
             screenLabel.setVerticalAlignment(SwingConstants.CENTER);
             screenLabel.setBackground(Color.BLACK);
             screenLabel.setOpaque(true);
+
             // Forward mouse/keyboard events:
             MouseAdapter mouseAdapter = new MouseAdapter(){
                 public void mousePressed(MouseEvent e){ forwardMouseEvent(e); }
@@ -135,15 +129,38 @@ public class SingleLauncher extends JFrame {
             };
             screenLabel.addMouseListener(mouseAdapter);
             screenLabel.addMouseMotionListener(mouseAdapter);
-            screenLabel.addKeyListener(new KeyAdapter(){
-                public void keyPressed(KeyEvent e){ forwardKeyEvent(e); }
-                public void keyReleased(KeyEvent e){ forwardKeyEvent(e); }
+
+            // Make the label focusable so it can receive key events. // ADDED
+            screenLabel.setFocusable(true);
+            // We can request focus once we lay out the UI.
+            screenLabel.addHierarchyListener(e -> {
+                if ((e.getChangeFlags() & HierarchyEvent.DISPLAYABILITY_CHANGED) != 0
+                        && screenLabel.isDisplayable()) {
+                    // Request focus after display.
+                    SwingUtilities.invokeLater(() -> screenLabel.requestFocusInWindow());
+                }
             });
-            
+
+            // KeyListener that handles pressed, released, and typed. // ADDED
+            screenLabel.addKeyListener(new KeyAdapter() {
+                @Override
+                public void keyPressed(KeyEvent e) {
+                    forwardKeyEvent(e);
+                }
+                @Override
+                public void keyReleased(KeyEvent e) {
+                    forwardKeyEvent(e);
+                }
+                @Override
+                public void keyTyped(KeyEvent e) {
+                    forwardKeyEvent(e);
+                }
+            });
+
             JPanel centerPanel = new JPanel(new BorderLayout());
             centerPanel.add(screenLabel, BorderLayout.CENTER);
             add(centerPanel, BorderLayout.CENTER);
-            
+
             // South panel: Chat area & File Send
             JPanel chatPanel = new JPanel(new BorderLayout());
             chatArea = new JTextArea(5, 30);
@@ -152,41 +169,39 @@ public class SingleLauncher extends JFrame {
             chatInput = new JTextField();
             sendChatButton = new JButton("Send");
             sendFileButton = new JButton("Send File");
-            
+
             JPanel inputPanel = new JPanel(new BorderLayout());
             inputPanel.add(chatInput, BorderLayout.CENTER);
             JPanel btnPanel = new JPanel();
             btnPanel.add(sendChatButton);
             btnPanel.add(sendFileButton);
             inputPanel.add(btnPanel, BorderLayout.EAST);
-            
+
             chatPanel.add(chatScroll, BorderLayout.CENTER);
             chatPanel.add(inputPanel, BorderLayout.SOUTH);
-            
+
             add(chatPanel, BorderLayout.SOUTH);
-            
-            // Send chat action:
+
+            // Send chat
             sendChatButton.addActionListener(e -> {
                 ClientHandler selected = clientJList.getSelectedValue();
                 if (selected != null) {
                     String text = chatInput.getText().trim();
                     if (!text.isEmpty()) {
-                        // Append our message locally:
                         appendChatMessage(selected, "Host: " + text);
                         selected.sendChatMessage(text);
                         chatInput.setText("");
                     }
                 }
             });
-            
-            // Send file action:
+
+            // Send file
             sendFileButton.addActionListener(e -> {
                 ClientHandler selected = clientJList.getSelectedValue();
                 if (selected != null) {
                     JFileChooser fc = new JFileChooser();
                     if (fc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
                         File file = fc.getSelectedFile();
-                        // Limit file to 10 MB:
                         final long MAX_FILE_SIZE = 10 * 1024 * 1024;
                         if (file.length() <= MAX_FILE_SIZE) {
                             selected.sendFile(file);
@@ -197,12 +212,12 @@ public class SingleLauncher extends JFrame {
                     }
                 }
             });
-            
+
             // Start a server thread on port 5000
             serverThread = new ServerThread(5000, this);
             serverThread.start();
         }
-        
+
         // Called by ClientHandler when a new screenshot arrives.
         public void updateClientScreen(ClientHandler handler, ImageIcon icon) {
             if (clientJList.getSelectedValue() != handler || icon == null) return;
@@ -215,24 +230,24 @@ public class SingleLauncher extends JFrame {
                 screenLabel.setIcon(icon);
             }
         }
-        
+
         // Append a chat message in the chat area.
         public void appendChatMessage(ClientHandler handler, String message) {
-            // Only show message if this client is selected.
             if (clientJList.getSelectedValue() == handler) {
                 SwingUtilities.invokeLater(() -> {
                     chatArea.append(message + "\n");
                 });
             }
         }
-        
+
         private void forwardMouseEvent(MouseEvent e) {
             ClientHandler selected = clientJList.getSelectedValue();
             if (selected != null) {
                 selected.sendMouseEvent(e, screenLabel.getWidth(), screenLabel.getHeight());
             }
         }
-        
+
+        // Forward key events (pressed, released, typed) // ADDED
         private void forwardKeyEvent(KeyEvent e) {
             ClientHandler selected = clientJList.getSelectedValue();
             if (selected != null) {
@@ -240,17 +255,17 @@ public class SingleLauncher extends JFrame {
             }
         }
     }
-    
-    // ServerThread: continually accepts new client connections.
+
+    // ServerThread
     static class ServerThread extends Thread {
         private int port;
         private HostGUI hostGUI;
-        
+
         public ServerThread(int port, HostGUI hostGUI) {
             this.port = port;
             this.hostGUI = hostGUI;
         }
-        
+
         public void run() {
             try (ServerSocket ss = new ServerSocket(port)) {
                 while(true) {
@@ -264,8 +279,8 @@ public class SingleLauncher extends JFrame {
             }
         }
     }
-    
-    // ClientHandler: one thread per remote client.
+
+    // ClientHandler
     static class ClientHandler extends Thread {
         private Socket socket;
         private HostGUI hostGUI;
@@ -273,28 +288,28 @@ public class SingleLauncher extends JFrame {
         private ObjectOutputStream out;
         private ImageIcon lastReceivedImage;
         private String clientName = "Unknown Client";
-        
+
         public ClientHandler(Socket socket, HostGUI hostGUI) {
             this.socket = socket;
             this.hostGUI = hostGUI;
         }
-        
+
         public ImageIcon getLastReceivedImage() {
             return lastReceivedImage;
         }
-        
+
         public void run() {
             try {
                 out = new ObjectOutputStream(socket.getOutputStream());
                 out.flush();
                 in = new ObjectInputStream(socket.getInputStream());
-                
+
                 // First message: client's hostname.
                 Object first = in.readObject();
                 if (first instanceof String) {
                     clientName = (String) first;
                 }
-                
+
                 // Continuously read incoming objects…
                 while(true) {
                     Object obj = in.readObject();
@@ -307,7 +322,6 @@ public class SingleLauncher extends JFrame {
                         if (msg.type == RemoteMessage.MessageType.CHAT) {
                             hostGUI.appendChatMessage(this, clientName + ": " + msg.chatText);
                         } else if (msg.type == RemoteMessage.MessageType.FILE) {
-                            // For file messages, ask where to save the file.
                             SwingUtilities.invokeLater(() -> {
                                 int choice = JOptionPane.showConfirmDialog(hostGUI,
                                     clientName + " sent file: " + msg.fileName + "\nSave file?",
@@ -339,16 +353,16 @@ public class SingleLauncher extends JFrame {
                 } catch (IOException ignored) {}
             }
         }
-        
+
         // When shown in the JList, display the client’s hostname.
         public String toString() {
             return clientName;
         }
-        
-        // Send RemoteEvent (for mouse/keyboard)
+
+        // Send RemoteEvent (mouse/keyboard)
         public void sendMouseEvent(MouseEvent e, int labelW, int labelH) {
             try {
-                if(out==null)return;
+                if(out == null) return;
                 RemoteEvent evt = new RemoteEvent();
                 evt.type = RemoteEvent.Type.MOUSE;
                 evt.mouseID = e.getID();
@@ -361,20 +375,23 @@ public class SingleLauncher extends JFrame {
                 out.flush();
             } catch (IOException ex) { }
         }
+        // Forward KeyEvent to the client, including typed chars. // ADDED
         public void sendKeyEvent(KeyEvent e) {
             try {
-                if(out==null)return;
+                if (out == null) return;
                 RemoteEvent evt = new RemoteEvent();
                 evt.type = RemoteEvent.Type.KEYBOARD;
-                evt.keyID = e.getID();
+                evt.keyID = e.getID();       // KEY_PRESSED, KEY_RELEASED, or KEY_TYPED
                 evt.keyCode = e.getKeyCode();
                 evt.keyChar = e.getKeyChar();
                 out.writeObject(evt);
                 out.flush();
-            } catch(IOException ex){ }
+            } catch(IOException ex){
+                // silent
+            }
         }
-        
-        // Send a chat message to the client.
+
+        // Chat
         public void sendChatMessage(String text) {
             try {
                 if(out==null)return;
@@ -385,8 +402,8 @@ public class SingleLauncher extends JFrame {
                 out.flush();
             } catch(IOException ex){ }
         }
-        
-        // Send a file to the client.
+
+        // File
         public void sendFile(File file) {
             try {
                 if(out==null)return;
@@ -413,33 +430,33 @@ public class SingleLauncher extends JFrame {
             }
         }
     }
-    
+
     // ──────────────────────────────────────────────────────
     // CLIENT SIDE CLASSES
     // ──────────────────────────────────────────────────────
-    
-    // RemoteDesktopClient – now creates its own client GUI with a chat panel and file–send option.
+
     static class RemoteDesktopClient {
         private boolean running = true;
         private ClientGUI clientGUI;
         private ObjectOutputStream out;
         private ObjectInputStream in;
-        
+
         public void startClient(String host, int port) {
             try {
                 Socket socket = new Socket(host, port);
-                // Create the client GUI (shows chat area at bottom)
+                // Create the client GUI
                 clientGUI = new ClientGUI();
+                clientGUI.setController(this);  // IMPORTANT: let the GUI know who controls it
                 clientGUI.setVisible(true);
-                
+
                 out = new ObjectOutputStream(socket.getOutputStream());
                 out.flush();
                 in = new ObjectInputStream(socket.getInputStream());
-                
+
                 // Send our hostname as first message.
                 sendClientHostname();
-                
-                // Start screenshot capture thread: (client sends its screenshot to host)
+
+                // Start screenshot capture thread
                 Thread captureThread = new Thread(() -> {
                     try {
                         Robot robot = new Robot();
@@ -458,7 +475,7 @@ public class SingleLauncher extends JFrame {
                     } catch(Exception ex){ }
                 });
                 captureThread.start();
-                
+
                 // Main loop: process incoming remote control events and chat/file messages.
                 Robot robot = new Robot();
                 while(running){
@@ -471,7 +488,7 @@ public class SingleLauncher extends JFrame {
                         if(msg.type == RemoteMessage.MessageType.CHAT) {
                             clientGUI.appendChatMessage("Host: " + msg.chatText);
                         } else if(msg.type == RemoteMessage.MessageType.FILE) {
-                            // Ask user where to save the received file.
+                            // Ask user where to save
                             SwingUtilities.invokeLater(() -> {
                                 int choice = JOptionPane.showConfirmDialog(clientGUI,
                                     "Host sent file: " + msg.fileName + "\nSave file?",
@@ -491,7 +508,7 @@ public class SingleLauncher extends JFrame {
                         }
                     }
                 }
-                
+
                 captureThread.join();
                 in.close();
                 out.close();
@@ -500,7 +517,7 @@ public class SingleLauncher extends JFrame {
                 // silent
             }
         }
-        
+
         private void sendClientHostname() {
             try {
                 String localName;
@@ -511,33 +528,43 @@ public class SingleLauncher extends JFrame {
                 out.flush();
             } catch(IOException ex){ }
         }
-        
+
         private void handleRemoteEvent(RemoteEvent evt, Robot robot) {
             // The client is being controlled by the host.
-            // Map coordinates from the (host's transmitted) display dimensions to the local (real) screen.
-            Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-            int realX = (int)(((double)evt.x / evt.displayWidth) * screenSize.width);
-            int realY = (int)(((double)evt.y / evt.displayHeight) * screenSize.height);
-            robot.mouseMove(realX, realY);
-            if(evt.mouseID == MouseEvent.MOUSE_PRESSED) {
-                if(evt.button == MouseEvent.BUTTON1)
-                    robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-                else if(evt.button == MouseEvent.BUTTON3)
-                    robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
-            } else if(evt.mouseID == MouseEvent.MOUSE_RELEASED) {
-                if(evt.button == MouseEvent.BUTTON1)
-                    robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-                else if(evt.button == MouseEvent.BUTTON3)
-                    robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+            if (evt.type == RemoteEvent.Type.MOUSE) {
+                Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+                int realX = (int)(((double)evt.x / evt.displayWidth) * screenSize.width);
+                int realY = (int)(((double)evt.y / evt.displayHeight) * screenSize.height);
+                robot.mouseMove(realX, realY);
+                if(evt.mouseID == MouseEvent.MOUSE_PRESSED) {
+                    if(evt.button == MouseEvent.BUTTON1)
+                        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+                    else if(evt.button == MouseEvent.BUTTON3)
+                        robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+                } else if(evt.mouseID == MouseEvent.MOUSE_RELEASED) {
+                    if(evt.button == MouseEvent.BUTTON1)
+                        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+                    else if(evt.button == MouseEvent.BUTTON3)
+                        robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+                }
             }
-            if(evt.type == RemoteEvent.Type.KEYBOARD) {
-                if(evt.keyID == KeyEvent.KEY_PRESSED)
+            else if (evt.type == RemoteEvent.Type.KEYBOARD) {
+                // Handle key presses, releases, typed chars, etc.
+                if(evt.keyID == KeyEvent.KEY_PRESSED) {
                     robot.keyPress(evt.keyCode);
-                else if(evt.keyID == KeyEvent.KEY_RELEASED)
+                } else if(evt.keyID == KeyEvent.KEY_RELEASED) {
                     robot.keyRelease(evt.keyCode);
+                } else if(evt.keyID == KeyEvent.KEY_TYPED) {
+                    // KEY_TYPED is character-based. Map the char to a key code if possible.
+                    int code = KeyEvent.getExtendedKeyCodeForChar(evt.keyChar);
+                    if (code != KeyEvent.VK_UNDEFINED) {
+                        robot.keyPress(code);
+                        robot.keyRelease(code);
+                    }
+                }
             }
         }
-        
+
         // Allow the client GUI to send a chat message/file.
         public void sendChatMessage(String text) {
             try {
@@ -571,33 +598,33 @@ public class SingleLauncher extends JFrame {
             } catch(IOException ex){ return null; }
         }
     }
-    
-    // ClientGUI: the client’s UI – a minimal window with a chat panel and a “Send File” button.
+
+    // ClientGUI
     static class ClientGUI extends JFrame {
         private JTextArea chatArea;
         private JTextField chatInput;
         private JButton sendChatButton;
         private JButton sendFileButton;
-        
-        private RemoteDesktopClient clientController;
-        
+
+        private RemoteDesktopClient controller;
+
         public ClientGUI() {
             super("Client – Remote Controlled");
             setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             setSize(600,400);
             setLayout(new BorderLayout());
-            
-            // Upper area: a label indicates that your system is controlled.
+
+            // Upper label
             JLabel infoLabel = new JLabel("Your system is being remotely controlled.", SwingConstants.CENTER);
             add(infoLabel, BorderLayout.NORTH);
-            
-            // Center: chat area.
+
+            // Center: chat area
             chatArea = new JTextArea();
             chatArea.setEditable(false);
             JScrollPane chatScroll = new JScrollPane(chatArea);
             add(chatScroll, BorderLayout.CENTER);
-            
-            // South: chat input panel.
+
+            // South: chat input
             JPanel inputPanel = new JPanel(new BorderLayout());
             chatInput = new JTextField();
             sendChatButton = new JButton("Send");
@@ -608,23 +635,22 @@ public class SingleLauncher extends JFrame {
             inputPanel.add(chatInput, BorderLayout.CENTER);
             inputPanel.add(btnPanel, BorderLayout.EAST);
             add(inputPanel, BorderLayout.SOUTH);
-            
-            // Actions:
+
+            // Actions
             sendChatButton.addActionListener(e -> {
                 String text = chatInput.getText().trim();
                 if(!text.isEmpty()){
                     appendChatMessage("You: " + text);
-                    // Use the controller to send the chat message.
                     if(controller != null) {
                         controller.sendChatMessage(text);
                     }
                     chatInput.setText("");
                 }
             });
-            
+
             sendFileButton.addActionListener(e -> {
                 JFileChooser fc = new JFileChooser();
-                if(fc.showOpenDialog(this)==JFileChooser.APPROVE_OPTION) {
+                if(fc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
                     File file = fc.getSelectedFile();
                     final long MAX_FILE_SIZE = 10*1024*1024;
                     if(file.length() <= MAX_FILE_SIZE) {
@@ -638,25 +664,22 @@ public class SingleLauncher extends JFrame {
                 }
             });
         }
-        
-        // A pointer set by RemoteDesktopClient:
-        private RemoteDesktopClient controller;
+
         public void setController(RemoteDesktopClient c) {
             controller = c;
         }
-        
+
         public void appendChatMessage(String msg) {
             SwingUtilities.invokeLater(() -> {
                 chatArea.append(msg + "\n");
             });
         }
     }
-    
+
     // ──────────────────────────────────────────────────────
     // SHARED MESSAGE CLASSES
     // ──────────────────────────────────────────────────────
-    
-    // RemoteEvent: used for sending input events
+
     static class RemoteEvent implements Serializable {
         enum Type { MOUSE, KEYBOARD }
         public Type type;
@@ -666,12 +689,11 @@ public class SingleLauncher extends JFrame {
         public int x, y;
         public int displayWidth, displayHeight;
         // For keyboard:
-        public int keyID;
+        public int keyID;         // e.g., KeyEvent.KEY_PRESSED, KEY_RELEASED, KEY_TYPED
         public int keyCode;
         public char keyChar;
     }
-    
-    // RemoteMessage: used for chat and file transfers.
+
     static class RemoteMessage implements Serializable {
         enum MessageType { CHAT, FILE }
         public MessageType type;
