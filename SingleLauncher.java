@@ -825,7 +825,6 @@
 //         }
 //     }
 // }
-
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
@@ -853,7 +852,7 @@ public class SingleLauncher extends JFrame {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5,5,5,5);
         
-        // We are not using IP/port fields anymore—only two buttons.
+        // We retain two buttons only.
         JButton hostButton = new JButton("Start Host");
         JButton clientButton = new JButton("Start Client");
         
@@ -866,30 +865,30 @@ public class SingleLauncher extends JFrame {
         hostButton.addActionListener(e -> {
             setVisible(false);
             SwingUtilities.invokeLater(() -> {
-                // Start host on fixed port 5000
+                // Use fixed port 5000
                 HostGUI hostGUI = new HostGUI(5000);
                 hostGUI.setExtendedState(JFrame.MAXIMIZED_BOTH);
                 hostGUI.setVisible(true);
             });
         });
         
+        // Instead of directly starting the client,
+        // show the ClientLauncher window so you can choose the IP.
         clientButton.addActionListener(e -> {
             setVisible(false);
             SwingUtilities.invokeLater(() -> {
-            ClientLauncher cl = new ClientLauncher();
-            cl.setVisible(true);
+                ClientLauncher cl = new ClientLauncher();
+                cl.setVisible(true);
             });
-            });
+        });
     }
 
     // ================== HOST SIDE CLASSES ======================
     
-    // New multi-client Host GUI using JTabbedPane
+    // New multi-client Host GUI using a JTabbedPane.
     static class HostGUI extends JFrame {
         private JTabbedPane tabbedPane;
-        // Map each ClientHandler to its screen display label.
         private Map<ClientHandler, JLabel> clientScreens;
-        // Control buttons that act on the currently selected client.
         private JButton openChatBtn, stopConnBtn, sendFileBtn;
         
         public HostGUI(int port) {
@@ -898,7 +897,7 @@ public class SingleLauncher extends JFrame {
             setSize(1200, 800);
             setLayout(new BorderLayout());
             
-            // Top control panel with buttons.
+            // Top control panel.
             JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
             openChatBtn = new JButton("Open Chat");
             stopConnBtn = new JButton("Stop Connection");
@@ -908,12 +907,12 @@ public class SingleLauncher extends JFrame {
             topPanel.add(sendFileBtn);
             add(topPanel, BorderLayout.NORTH);
             
-            // Create tabbed pane: each tab will show one client’s screen.
+            // Create tabbed pane to show each client's screen.
             tabbedPane = new JTabbedPane();
             clientScreens = new HashMap<>();
             add(tabbedPane, BorderLayout.CENTER);
             
-            // Action listeners: operate on the selected client (if any).
+            // Button actions – operate on the currently selected client.
             openChatBtn.addActionListener(e -> {
                 ClientHandler handler = getSelectedClient();
                 if (handler != null) {
@@ -941,12 +940,11 @@ public class SingleLauncher extends JFrame {
                 }
             });
             
-            // Start the server thread that accepts incoming client connections.
+            // Start the server on the given port.
             ServerThread serverThread = new ServerThread(port, this);
             serverThread.start();
         }
         
-        // Add new client handler by creating a new tab.
         public synchronized void addClientHandler(ClientHandler handler) {
             JPanel clientPanel = new JPanel(new BorderLayout());
             JLabel screenLabel = new JLabel();
@@ -957,11 +955,10 @@ public class SingleLauncher extends JFrame {
             clientPanel.add(screenLabel, BorderLayout.CENTER);
             
             clientScreens.put(handler, screenLabel);
-            // Use the handler's toString() (usually the client's name) as the tab title.
+            // Use client's name as the tab label.
             tabbedPane.addTab(handler.toString(), clientPanel);
         }
         
-        // Update the display for a particular client.
         public synchronized void updateClientScreen(ClientHandler handler, ImageIcon icon) {
             JLabel screenLabel = clientScreens.get(handler);
             if (screenLabel != null && icon != null) {
@@ -972,12 +969,11 @@ public class SingleLauncher extends JFrame {
             }
         }
         
-        // Return the ClientHandler corresponding to the currently selected tab.
         private ClientHandler getSelectedClient() {
             int index = tabbedPane.getSelectedIndex();
-            if (index < 0) return null;
+            if(index < 0) return null;
             Component comp = tabbedPane.getComponentAt(index);
-            for (Map.Entry<ClientHandler, JLabel> entry : clientScreens.entrySet()){
+            for(Map.Entry<ClientHandler, JLabel> entry : clientScreens.entrySet()){
                 if(entry.getValue().getParent() == comp)
                     return entry.getKey();
             }
@@ -985,7 +981,6 @@ public class SingleLauncher extends JFrame {
         }
     }
     
-    // Server thread listens for new client connections.
     static class ServerThread extends Thread {
         private int port;
         private HostGUI hostGUI;
@@ -1007,7 +1002,6 @@ public class SingleLauncher extends JFrame {
         }
     }
     
-    // The handler for an individual client connection.
     static class ClientHandler extends Thread {
         private Socket socket;
         private HostGUI hostGUI;
@@ -1029,7 +1023,7 @@ public class SingleLauncher extends JFrame {
                 out.flush();
                 in = new ObjectInputStream(socket.getInputStream());
                 
-                // First, send the host's name to the client.
+                // First, send host’s name.
                 String hostName;
                 try {
                     hostName = InetAddress.getLocalHost().getHostName();
@@ -1039,9 +1033,10 @@ public class SingleLauncher extends JFrame {
                 out.writeObject(hostName);
                 out.flush();
                 
-                // Then, read the client's name.
+                // Then, read the client’s name.
                 Object first = in.readObject();
-                if (first instanceof String) clientName = (String) first;
+                if (first instanceof String)
+                    clientName = (String) first;
                 
                 while (running) {
                     Object obj = in.readObject();
@@ -1051,12 +1046,15 @@ public class SingleLauncher extends JFrame {
                     } else if (obj instanceof RemoteMessage) {
                         RemoteMessage msg = (RemoteMessage) obj;
                         if (msg.type == RemoteMessage.MessageType.CHAT) {
-                            if (chatWindow != null)
-                                chatWindow.appendChatMessage(clientName + ": " + msg.chatText);
+                            // If chat window is not open, open it automatically.
+                            if(chatWindow == null || !chatWindow.isVisible()){
+                                openOrCreateChatWindow();
+                            }
+                            chatWindow.appendChatMessage(clientName + ": " + msg.chatText);
                         } else if (msg.type == RemoteMessage.MessageType.FILE) {
                             SwingUtilities.invokeLater(() -> {
-                                int choice = JOptionPane.showConfirmDialog(hostGUI, clientName + " sent file: " + msg.fileName + "\nSave file?", 
-                                        "File received", JOptionPane.YES_NO_OPTION);
+                                int choice = JOptionPane.showConfirmDialog(hostGUI, clientName + " sent file: " +
+                                        msg.fileName + "\nSave file?", "File received", JOptionPane.YES_NO_OPTION);
                                 if (choice == JOptionPane.YES_OPTION) {
                                     JFileChooser fc = new JFileChooser();
                                     fc.setSelectedFile(new File(msg.fileName));
@@ -1143,7 +1141,8 @@ public class SingleLauncher extends JFrame {
                 byte[] fileBytes = new byte[(int) file.length()];
                 try (FileInputStream fis = new FileInputStream(file)) {
                     int read = fis.read(fileBytes);
-                    if (read != fileBytes.length) return null;
+                    if (read != fileBytes.length)
+                        return null;
                     return fileBytes;
                 }
             } catch (IOException ex) {
@@ -1152,8 +1151,10 @@ public class SingleLauncher extends JFrame {
         }
         
         public void openOrCreateChatWindow() {
-            if (chatWindow == null) chatWindow = new ChatWindow(this, clientName);
-            if (!chatWindow.isVisible()) chatWindow.setVisible(true);
+            if (chatWindow == null)
+                chatWindow = new ChatWindow(this, clientName);
+            if (!chatWindow.isVisible())
+                chatWindow.setVisible(true);
         }
         
         public void stopConnection() {
@@ -1224,16 +1225,16 @@ public class SingleLauncher extends JFrame {
                 out.flush();
                 in = new ObjectInputStream(socket.getInputStream());
                 
-                // Read host's name sent from the server.
+                // Read host’s name.
                 String hostName = (String) in.readObject();
                 clientGUI.setControlledBy(hostName);
                 
-                // Then send this client's hostname.
+                // Send this client's name.
                 sendClientHostname();
                 
                 SwingUtilities.invokeLater(() -> clientGUI.setVisible(true));
                 
-                // Start thread to capture and send screenshots.
+                // Thread to capture and send screenshots.
                 Thread captureThread = new Thread(() -> {
                     try {
                         Robot robot = new Robot();
@@ -1253,6 +1254,7 @@ public class SingleLauncher extends JFrame {
                 });
                 captureThread.start();
                 
+                // Process incoming remote events and messages.
                 Robot robot = new Robot();
                 while (running) {
                     Object obj = in.readObject();
@@ -1262,12 +1264,14 @@ public class SingleLauncher extends JFrame {
                     } else if (obj instanceof RemoteMessage) {
                         RemoteMessage msg = (RemoteMessage) obj;
                         if (msg.type == RemoteMessage.MessageType.CHAT) {
-                            if (chatWindow != null)
-                                chatWindow.appendChatMessage("Host: " + msg.chatText);
+                            // Auto open chat window if not open.
+                            if (chatWindow == null || !chatWindow.isVisible())
+                                openChatWindow();
+                            chatWindow.appendChatMessage("Host: " + msg.chatText);
                         } else if (msg.type == RemoteMessage.MessageType.FILE) {
                             SwingUtilities.invokeLater(() -> {
-                                int choice = JOptionPane.showConfirmDialog(clientGUI, "Host sent file: " + msg.fileName + "\nSave file?",
-                                        "File received", JOptionPane.YES_NO_OPTION);
+                                int choice = JOptionPane.showConfirmDialog(clientGUI, "Host sent file: " 
+                                        + msg.fileName + "\nSave file?", "File received", JOptionPane.YES_NO_OPTION);
                                 if (choice == JOptionPane.YES_OPTION) {
                                     JFileChooser fc = new JFileChooser();
                                     fc.setSelectedFile(new File(msg.fileName));
@@ -1293,12 +1297,10 @@ public class SingleLauncher extends JFrame {
         
         private void sendClientHostname() {
             try {
-                String localName;
-                try {
-                    localName = InetAddress.getLocalHost().getHostName();
-                } catch (Exception ex) {
+                // Use "user.name" property; if not set, fall back.
+                String localName = System.getProperty("user.name");
+                if (localName == null || localName.isEmpty())
                     localName = "Unknown Client";
-                }
                 out.writeObject(localName);
                 out.flush();
             } catch (IOException ex) { }
@@ -1307,6 +1309,7 @@ public class SingleLauncher extends JFrame {
         private void handleRemoteEvent(RemoteEvent evt, Robot robot) {
             if (evt.type == RemoteEvent.Type.MOUSE) {
                 Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+                // Map coordinates based on the host's sent display dimensions.
                 int realX = (int)(((double) evt.x / evt.displayWidth) * screenSize.width);
                 int realY = (int)(((double) evt.y / evt.displayHeight) * screenSize.height);
                 robot.mouseMove(realX, realY);
@@ -1384,9 +1387,7 @@ public class SingleLauncher extends JFrame {
     }
     
     static class ClientGUI extends JFrame {
-        private JButton sendFileButton;
-        private JButton stopConnButton;
-        private JButton openChatButton;
+        private JButton sendFileButton, stopConnButton, openChatButton;
         private RemoteDesktopClient controller;
         private JLabel infoLabel;
         
@@ -1434,7 +1435,6 @@ public class SingleLauncher extends JFrame {
             controller = c;
         }
         
-        // Update the label to show which host is controlling.
         public void setControlledBy(String hostName) {
             infoLabel.setText("Your system is being remotely controlled by " + hostName);
         }
