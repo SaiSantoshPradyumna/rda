@@ -525,8 +525,8 @@ public class SingleLauncher extends JFrame {
                     robot.keyPress(evt.keyCode);
                 } else if(evt.keyID == KeyEvent.KEY_RELEASED) {
                     robot.keyRelease(evt.keyCode);
-                } else 
-                // if(evt.keyID == KeyEvent.KEY_TYPED) {
+                } 
+                // else if(evt.keyID == KeyEvent.KEY_TYPED) {
                 //     int code = KeyEvent.getExtendedKeyCodeForChar(evt.keyChar);
                 //     if (code != KeyEvent.VK_UNDEFINED) {
                 //         robot.keyPress(code);
