@@ -1,11 +1,11 @@
-import java.awt.*;
-import java.awt.event.*;
-import java.awt.image.BufferedImage;
-import java.io.*;
-import java.net.*;
-import javax.imageio.ImageIO;
-import javax.swing.*;
-import javax.swing.event.*;
+import java.awt.*;  
+import java.awt.event.*;  
+import java.awt.image.BufferedImage;  
+import java.io.*;  
+import java.net.*;  
+import javax.imageio.ImageIO;  
+import javax.swing.*;  
+import javax.swing.event.*;  
 
 public class SingleLauncher extends JFrame {
 
@@ -52,7 +52,8 @@ public class SingleLauncher extends JFrame {
         hostButton.addActionListener(e -> {
             setVisible(false);
             SwingUtilities.invokeLater(() -> {
-                HostGUI hostGUI = new HostGUI();
+                int port = Integer.parseInt(portField.getText().trim());
+                HostGUI hostGUI = new HostGUI(port);
                 // Optionally maximize the host window
                 hostGUI.setExtendedState(JFrame.MAXIMIZED_BOTH);
                 hostGUI.setVisible(true);
@@ -85,12 +86,24 @@ public class SingleLauncher extends JFrame {
         private JButton sendFileButton;
 
         private ServerThread serverThread;
+        private int listeningPort;
 
-        public HostGUI() {
+        public HostGUI(int port) {
             super("Host – Remote Desktop");
             setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             setSize(1000, 700);
             setLayout(new BorderLayout());
+            this.listeningPort = port;
+
+            // Top panel: show Host IP & Port
+            String localIp = "Unknown";
+            try {
+                localIp = InetAddress.getLocalHost().getHostAddress();
+            } catch (UnknownHostException ex) {
+                // ignore
+            }
+            JLabel hostIpLabel = new JLabel("Hosting on IP: " + localIp + "   Port: " + listeningPort, SwingConstants.CENTER);
+            add(hostIpLabel, BorderLayout.NORTH);
 
             // Left panel: List of connected clients
             clientListModel = new DefaultListModel<>();
@@ -213,8 +226,8 @@ public class SingleLauncher extends JFrame {
                 }
             });
 
-            // Start a server thread on port 5000
-            serverThread = new ServerThread(5000, this);
+            // Start a server thread on the chosen port
+            serverThread = new ServerThread(listeningPort, this);
             serverThread.start();
         }
 
@@ -381,7 +394,7 @@ public class SingleLauncher extends JFrame {
                 if (out == null) return;
                 RemoteEvent evt = new RemoteEvent();
                 evt.type = RemoteEvent.Type.KEYBOARD;
-                evt.keyID = e.getID();       // KEY_PRESSED, KEY_RELEASED, or KEY_TYPED
+                evt.keyID = e.getID();       
                 evt.keyCode = e.getKeyCode();
                 evt.keyChar = e.getKeyChar();
                 out.writeObject(evt);
@@ -446,7 +459,7 @@ public class SingleLauncher extends JFrame {
                 Socket socket = new Socket(host, port);
                 // Create the client GUI
                 clientGUI = new ClientGUI();
-                clientGUI.setController(this);  // IMPORTANT: let the GUI know who controls it
+                clientGUI.setController(this);
                 clientGUI.setVisible(true);
 
                 out = new ObjectOutputStream(socket.getOutputStream());
@@ -684,12 +697,12 @@ public class SingleLauncher extends JFrame {
         enum Type { MOUSE, KEYBOARD }
         public Type type;
         // For mouse:
-        public int mouseID;       // e.g., MouseEvent.MOUSE_PRESSED, etc.
+        public int mouseID;       
         public int button;
         public int x, y;
         public int displayWidth, displayHeight;
         // For keyboard:
-        public int keyID;         // e.g., KeyEvent.KEY_PRESSED, KEY_RELEASED, KEY_TYPED
+        public int keyID;         
         public int keyCode;
         public char keyChar;
     }
