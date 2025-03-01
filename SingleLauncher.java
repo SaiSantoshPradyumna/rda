@@ -876,12 +876,10 @@ public class SingleLauncher extends JFrame {
         clientButton.addActionListener(e -> {
             setVisible(false);
             SwingUtilities.invokeLater(() -> {
-                // Directly start the client using default fixed host IP and port.
-                RemoteDesktopClient client = new RemoteDesktopClient();
-                ConnectionEntry entry = new ConnectionEntry("127.0.0.1", 5000);
-                client.startClient("127.0.0.1", 5000, entry);
+            ClientLauncher cl = new ClientLauncher();
+            cl.setVisible(true);
             });
-        });
+            });
     }
 
     // ================== HOST SIDE CLASSES ======================
