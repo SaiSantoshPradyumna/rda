@@ -1,4 +1,14 @@
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Image;
+import java.awt.Insets;
+import java.awt.Rectangle;
+import java.awt.Robot;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.HierarchyEvent;
 import java.awt.event.InputEvent;
@@ -20,8 +30,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import javax.imageio.ImageIO;
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
+import javax.swing.*;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -32,6 +41,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.DefaultComboBoxModel;
 
 public class SingleLauncher extends JFrame {
     private JTextField ipField;
@@ -78,12 +88,10 @@ public class SingleLauncher extends JFrame {
         });
         clientButton.addActionListener((ActionEvent e) -> {
             setVisible(false);
-            String hostIP = ipField.getText().trim();
-            int port = Integer.parseInt(portField.getText().trim());
-            new Thread(() -> {
-                RemoteDesktopClient client = new RemoteDesktopClient();
-                client.startClient(hostIP, port);
-            }).start();
+            SwingUtilities.invokeLater(() -> {
+                ClientLauncher cl = new ClientLauncher();
+                cl.setVisible(true);
+            });
         });
     }
     static class HostGUI extends JFrame {
@@ -366,9 +374,12 @@ public class SingleLauncher extends JFrame {
         private ObjectOutputStream out;
         private ObjectInputStream in;
         private Socket socket;
-        public void startClient(String host, int port) {
+        private ConnectionEntry conn;
+        public void startClient(String host, int port, ConnectionEntry conn) {
+            this.conn = conn;
             try {
                 socket = new Socket(host, port);
+                conn.setOnline(true);
                 clientGUI = new ClientGUI();
                 clientGUI.setController(this);
                 clientGUI.setVisible(true);
@@ -423,7 +434,9 @@ public class SingleLauncher extends JFrame {
                 in.close();
                 out.close();
                 socket.close();
-            } catch(Exception e) {}
+            } catch(Exception e) {
+                conn.setOnline(false);
+            }
         }
         private void sendClientHostname() {
             try {
@@ -488,6 +501,7 @@ public class SingleLauncher extends JFrame {
             try { if(out != null) out.close(); } catch(IOException ex) {}
             try { if(socket != null && !socket.isClosed()) socket.close(); } catch(IOException ex) {}
             SwingUtilities.invokeLater(() -> { System.exit(0); });
+            conn.setOnline(false);
         }
     }
     static class ClientGUI extends JFrame {
@@ -567,5 +581,62 @@ public class SingleLauncher extends JFrame {
         public String chatText;
         public String fileName;
         public byte[] fileData;
+    }
+    static class ConnectionEntry {
+        private String ip;
+        private int port;
+        private boolean online;
+        public ConnectionEntry(String ip, int port) { this.ip = ip; this.port = port; this.online = false; }
+        public String getIp() { return ip; }
+        public int getPort() { return port; }
+        public void setOnline(boolean online) { this.online = online; }
+        public boolean isOnline() { return online; }
+        public String toString() { return ip + ":" + port + " - " + (online ? "Online" : "Offline"); }
+    }
+    static class ClientLauncher extends JFrame {
+        private JComboBox<ConnectionEntry> connectionCombo;
+        private DefaultComboBoxModel<ConnectionEntry> comboModel;
+        private JTextField portField;
+        private JButton connectBtn;
+        public ClientLauncher() {
+            super("Client Launcher");
+            setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            setSize(400,150);
+            setLayout(new FlowLayout());
+            comboModel = new DefaultComboBoxModel<>();
+            connectionCombo = new JComboBox<>(comboModel);
+            connectionCombo.setEditable(true);
+            portField = new JTextField("5000", 6);
+            connectBtn = new JButton("Connect");
+            add(new JLabel("IP:"));
+            add(connectionCombo);
+            add(new JLabel("Port:"));
+            add(portField);
+            add(connectBtn);
+            connectBtn.addActionListener((ActionEvent e) -> {
+                String ip = connectionCombo.getEditor().getItem().toString().trim();
+                int port = Integer.parseInt(portField.getText().trim());
+                boolean exists = false;
+                for(int i=0; i<comboModel.getSize(); i++){
+                    ConnectionEntry entry = comboModel.getElementAt(i);
+                    if(entry.getIp().equals(ip) && entry.getPort()==port){
+                        exists = true;
+                        break;
+                    }
+                }
+                if(!exists){
+                    ConnectionEntry newEntry = new ConnectionEntry(ip, port);
+                    comboModel.addElement(newEntry);
+                }
+                ConnectionEntry selected = new ConnectionEntry(ip, port);
+                for(int i=0; i<comboModel.getSize(); i++){
+                    ConnectionEntry entry = comboModel.getElementAt(i);
+                    if(entry.getIp().equals(ip) && entry.getPort()==port){ selected = entry; break; }
+                }
+                setVisible(false);
+                RemoteDesktopClient client = new RemoteDesktopClient();
+                client.startClient(ip, port, selected);
+            });
+        }
     }
 }
