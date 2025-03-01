@@ -9,8 +9,6 @@ import javax.imageio.ImageIO;
 import javax.swing.*;
 
 public class SingleLauncher extends JFrame {
-    private JTextField ipField;
-    private JTextField portField;
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             SingleLauncher launcher = new SingleLauncher();
@@ -25,9 +23,9 @@ public class SingleLauncher extends JFrame {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         JLabel ipLabel = new JLabel("Client Connect IP:");
-        ipField = new JTextField("127.0.0.1", 10);
+        JTextField ipField = new JTextField("127.0.0.1", 10);
         JLabel portLabel = new JLabel("Port:");
-        portField = new JTextField("5000", 5);
+        JTextField portField = new JTextField("5000", 5);
         JButton hostButton = new JButton("Start Host");
         JButton clientButton = new JButton("Start Client");
         gbc.gridx = 0;
@@ -77,8 +75,7 @@ public class SingleLauncher extends JFrame {
             String localIp = "Unknown";
             try {
                 localIp = InetAddress.getLocalHost().getHostAddress();
-            } catch (UnknownHostException ex) {
-            }
+            } catch (UnknownHostException ex) {}
             JLabel hostIpLabel = new JLabel("Hosting on IP: " + localIp + "   Port: " + listeningPort, SwingConstants.CENTER);
             JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
             JLabel connLabel = new JLabel("Connections:");
@@ -86,16 +83,12 @@ public class SingleLauncher extends JFrame {
             JButton openChatBtn = new JButton("Open Chat");
             openChatBtn.addActionListener(e -> {
                 ClientHandler selected = (ClientHandler) clientCombo.getSelectedItem();
-                if (selected != null) {
-                    selected.openOrCreateChatWindow();
-                }
+                if (selected != null) selected.openOrCreateChatWindow();
             });
             JButton stopConnBtn = new JButton("Stop Connection");
             stopConnBtn.addActionListener(e -> {
                 ClientHandler selected = (ClientHandler) clientCombo.getSelectedItem();
-                if (selected != null) {
-                    selected.stopConnection();
-                }
+                if (selected != null) selected.stopConnection();
             });
             sendFileButton = new JButton("Send File");
             sendFileButton.addActionListener(e -> {
@@ -105,11 +98,8 @@ public class SingleLauncher extends JFrame {
                     if (fc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
                         File file = fc.getSelectedFile();
                         final long MAX_FILE_SIZE = 10 * 1024 * 1024;
-                        if (file.length() <= MAX_FILE_SIZE) {
-                            selected.sendFile(file);
-                        } else {
-                            JOptionPane.showMessageDialog(this, "File exceeds 10 MB limit.");
-                        }
+                        if (file.length() <= MAX_FILE_SIZE) selected.sendFile(file);
+                        else JOptionPane.showMessageDialog(this, "File exceeds 10 MB limit.");
                     }
                 }
             });
@@ -128,42 +118,25 @@ public class SingleLauncher extends JFrame {
             screenLabel.setBackground(Color.BLACK);
             screenLabel.setOpaque(true);
             MouseAdapter mouseAdapter = new MouseAdapter() {
-                public void mousePressed(MouseEvent e) {
-                    forwardMouseEvent(e);
-                }
-                public void mouseReleased(MouseEvent e) {
-                    forwardMouseEvent(e);
-                }
-                public void mouseMoved(MouseEvent e) {
-                    forwardMouseEvent(e);
-                }
-                public void mouseDragged(MouseEvent e) {
-                    forwardMouseEvent(e);
-                }
+                public void mousePressed(MouseEvent e) { forwardMouseEvent(e); }
+                public void mouseReleased(MouseEvent e) { forwardMouseEvent(e); }
+                public void mouseMoved(MouseEvent e) { forwardMouseEvent(e); }
+                public void mouseDragged(MouseEvent e) { forwardMouseEvent(e); }
             };
             screenLabel.addMouseListener(mouseAdapter);
             screenLabel.addMouseMotionListener(mouseAdapter);
             screenLabel.setFocusable(true);
             screenLabel.addHierarchyListener(e -> {
-                if ((e.getChangeFlags() & HierarchyEvent.DISPLAYABILITY_CHANGED) != 0 && screenLabel.isDisplayable()) {
+                if ((e.getChangeFlags() & HierarchyEvent.DISPLAYABILITY_CHANGED) != 0 && screenLabel.isDisplayable())
                     SwingUtilities.invokeLater(() -> screenLabel.requestFocusInWindow());
-                }
             });
             screenLabel.addKeyListener(new KeyAdapter() {
-                public void keyPressed(KeyEvent e) {
-                    forwardKeyEvent(e);
-                }
-                public void keyReleased(KeyEvent e) {
-                    forwardKeyEvent(e);
-                }
-                public void keyTyped(KeyEvent e) {
-                    forwardKeyEvent(e);
-                }
+                public void keyPressed(KeyEvent e) { forwardKeyEvent(e); }
+                public void keyReleased(KeyEvent e) { forwardKeyEvent(e); }
+                public void keyTyped(KeyEvent e) { forwardKeyEvent(e); }
             });
             screenLabel.addMouseListener(new MouseAdapter() {
-                public void mouseClicked(MouseEvent e) {
-                    screenLabel.requestFocusInWindow();
-                }
+                public void mouseClicked(MouseEvent e) { screenLabel.requestFocusInWindow(); }
             });
             add(screenLabel, BorderLayout.CENTER);
             serverThread = new ServerThread(listeningPort, this);
@@ -177,26 +150,18 @@ public class SingleLauncher extends JFrame {
             if (w > 0 && h > 0) {
                 Image scaled = icon.getImage().getScaledInstance(w, h, Image.SCALE_SMOOTH);
                 screenLabel.setIcon(new ImageIcon(scaled));
-            } else {
-                screenLabel.setIcon(icon);
-            }
+            } else screenLabel.setIcon(icon);
         }
         public void addClientHandler(ClientHandler handler) {
-            SwingUtilities.invokeLater(() -> {
-                clientCombo.addItem(handler);
-            });
+            SwingUtilities.invokeLater(() -> clientCombo.addItem(handler));
         }
         private void forwardMouseEvent(MouseEvent e) {
             ClientHandler selected = (ClientHandler) clientCombo.getSelectedItem();
-            if (selected != null) {
-                selected.sendMouseEvent(e, screenLabel.getWidth(), screenLabel.getHeight());
-            }
+            if (selected != null) selected.sendMouseEvent(e, screenLabel.getWidth(), screenLabel.getHeight());
         }
         private void forwardKeyEvent(KeyEvent e) {
             ClientHandler selected = (ClientHandler) clientCombo.getSelectedItem();
-            if (selected != null) {
-                selected.sendKeyEvent(e);
-            }
+            if (selected != null) selected.sendKeyEvent(e);
         }
     }
     static class ServerThread extends Thread {
@@ -214,8 +179,7 @@ public class SingleLauncher extends JFrame {
                     handler.start();
                     hostGUI.addClientHandler(handler);
                 }
-            } catch (IOException e) {
-            }
+            } catch (IOException e) {}
         }
     }
     static class ClientHandler extends Thread {
@@ -231,18 +195,14 @@ public class SingleLauncher extends JFrame {
             this.socket = socket;
             this.hostGUI = hostGUI;
         }
-        public ImageIcon getLastReceivedImage() {
-            return lastReceivedImage;
-        }
+        public ImageIcon getLastReceivedImage() { return lastReceivedImage; }
         public void run() {
             try {
                 out = new ObjectOutputStream(socket.getOutputStream());
                 out.flush();
                 in = new ObjectInputStream(socket.getInputStream());
                 Object first = in.readObject();
-                if (first instanceof String) {
-                    clientName = (String) first;
-                }
+                if (first instanceof String) clientName = (String) first;
                 while (running) {
                     Object obj = in.readObject();
                     if (obj instanceof byte[]) {
@@ -251,9 +211,7 @@ public class SingleLauncher extends JFrame {
                     } else if (obj instanceof RemoteMessage) {
                         RemoteMessage msg = (RemoteMessage) obj;
                         if (msg.type == RemoteMessage.MessageType.CHAT) {
-                            if (chatWindow != null) {
-                                chatWindow.appendChatMessage(clientName + ": " + msg.chatText);
-                            }
+                            if (chatWindow != null) chatWindow.appendChatMessage(clientName + ": " + msg.chatText);
                         } else if (msg.type == RemoteMessage.MessageType.FILE) {
                             SwingUtilities.invokeLater(() -> {
                                 int choice = JOptionPane.showConfirmDialog(hostGUI, clientName + " sent file: " + msg.fileName + "\nSave file?", "File received", JOptionPane.YES_NO_OPTION);
@@ -262,24 +220,16 @@ public class SingleLauncher extends JFrame {
                                     fc.setSelectedFile(new File(msg.fileName));
                                     if (fc.showSaveDialog(hostGUI) == JFileChooser.APPROVE_OPTION) {
                                         File saveFile = fc.getSelectedFile();
-                                        try (FileOutputStream fos = new FileOutputStream(saveFile)) {
-                                            fos.write(msg.fileData);
-                                        } catch (IOException ex) {
-                                        }
+                                        try (FileOutputStream fos = new FileOutputStream(saveFile)) { fos.write(msg.fileData); } catch (IOException ex) {}
                                     }
                                 }
                             });
                         }
                     }
                 }
-            } catch (Exception e) {
-            } finally {
-                stopConnection();
-            }
+            } catch (Exception e) {} finally { stopConnection(); }
         }
-        public String toString() {
-            return clientName;
-        }
+        public String toString() { return clientName; }
         public void sendMouseEvent(MouseEvent e, int labelW, int labelH) {
             try {
                 if (out == null) return;
@@ -293,8 +243,7 @@ public class SingleLauncher extends JFrame {
                 evt.displayHeight = labelH;
                 out.writeObject(evt);
                 out.flush();
-            } catch (IOException ex) {
-            }
+            } catch (IOException ex) {}
         }
         public void sendKeyEvent(KeyEvent e) {
             try {
@@ -306,8 +255,7 @@ public class SingleLauncher extends JFrame {
                 evt.keyChar = e.getKeyChar();
                 out.writeObject(evt);
                 out.flush();
-            } catch (IOException ex) {
-            }
+            } catch (IOException ex) {}
         }
         public void sendChatMessage(String text) {
             try {
@@ -317,8 +265,7 @@ public class SingleLauncher extends JFrame {
                 msg.chatText = text;
                 out.writeObject(msg);
                 out.flush();
-            } catch (IOException ex) {
-            }
+            } catch (IOException ex) {}
         }
         public void sendFile(File file) {
             try {
@@ -331,8 +278,7 @@ public class SingleLauncher extends JFrame {
                 msg.fileData = data;
                 out.writeObject(msg);
                 out.flush();
-            } catch (IOException ex) {
-            }
+            } catch (IOException ex) {}
         }
         private byte[] readFile(File file) {
             try {
@@ -342,32 +288,17 @@ public class SingleLauncher extends JFrame {
                     if (read != fileBytes.length) return null;
                     return fileBytes;
                 }
-            } catch (IOException ex) {
-                return null;
-            }
+            } catch (IOException ex) { return null; }
         }
         public void openOrCreateChatWindow() {
-            if (chatWindow == null) {
-                chatWindow = new ChatWindow(this, clientName);
-            }
-            if (!chatWindow.isVisible()) {
-                chatWindow.setVisible(true);
-            }
+            if (chatWindow == null) chatWindow = new ChatWindow(this, clientName);
+            if (!chatWindow.isVisible()) chatWindow.setVisible(true);
         }
         public void stopConnection() {
             running = false;
-            try {
-                if (in != null) in.close();
-            } catch (IOException ex) {
-            }
-            try {
-                if (out != null) out.close();
-            } catch (IOException ex) {
-            }
-            try {
-                if (socket != null && !socket.isClosed()) socket.close();
-            } catch (IOException ex) {
-            }
+            try { if (in != null) in.close(); } catch (IOException ex) {}
+            try { if (out != null) out.close(); } catch (IOException ex) {}
+            try { if (socket != null && !socket.isClosed()) socket.close(); } catch (IOException ex) {}
         }
     }
     static class ChatWindow extends JFrame {
@@ -402,9 +333,7 @@ public class SingleLauncher extends JFrame {
                 }
             });
         }
-        public void appendChatMessage(String msg) {
-            chatArea.append(msg + "\n");
-        }
+        public void appendChatMessage(String msg) { chatArea.append(msg + "\n"); }
     }
     static class RemoteDesktopClient {
         private volatile boolean running = true;
@@ -435,14 +364,10 @@ public class SingleLauncher extends JFrame {
                             ByteArrayOutputStream baos = new ByteArrayOutputStream();
                             ImageIO.write(capture, "jpg", baos);
                             byte[] imageBytes = baos.toByteArray();
-                            synchronized (out) {
-                                out.writeObject(imageBytes);
-                                out.flush();
-                            }
+                            synchronized (out) { out.writeObject(imageBytes); out.flush(); }
                             Thread.sleep(100);
                         }
-                    } catch (Exception ex) {
-                    }
+                    } catch (Exception ex) {}
                 });
                 captureThread.start();
                 Robot robot = new Robot();
@@ -454,9 +379,7 @@ public class SingleLauncher extends JFrame {
                     } else if (obj instanceof RemoteMessage) {
                         RemoteMessage msg = (RemoteMessage) obj;
                         if (msg.type == RemoteMessage.MessageType.CHAT) {
-                            if (chatWindow != null) {
-                                chatWindow.appendChatMessage("Host: " + msg.chatText);
-                            }
+                            if (chatWindow != null) chatWindow.appendChatMessage("Host: " + msg.chatText);
                         } else if (msg.type == RemoteMessage.MessageType.FILE) {
                             SwingUtilities.invokeLater(() -> {
                                 int choice = JOptionPane.showConfirmDialog(clientGUI, "Host sent file: " + msg.fileName + "\nSave file?", "File received", JOptionPane.YES_NO_OPTION);
@@ -465,10 +388,7 @@ public class SingleLauncher extends JFrame {
                                     fc.setSelectedFile(new File(msg.fileName));
                                     if (fc.showSaveDialog(clientGUI) == JFileChooser.APPROVE_OPTION) {
                                         File saveFile = fc.getSelectedFile();
-                                        try (FileOutputStream fos = new FileOutputStream(saveFile)) {
-                                            fos.write(msg.fileData);
-                                        } catch (IOException ex) {
-                                        }
+                                        try (FileOutputStream fos = new FileOutputStream(saveFile)) { fos.write(msg.fileData); } catch (IOException ex) {}
                                     }
                                 }
                             });
@@ -479,45 +399,32 @@ public class SingleLauncher extends JFrame {
                 in.close();
                 out.close();
                 socket.close();
-            } catch (Exception e) {
-                conn.setOnline(false);
-            }
+            } catch (Exception e) { conn.setOnline(false); }
         }
         private void sendClientHostname() {
             try {
                 String localName;
-                try {
-                    localName = InetAddress.getLocalHost().getHostName();
-                } catch (Exception ex) {
-                    localName = "Unknown Client";
-                }
+                try { localName = InetAddress.getLocalHost().getHostName(); } catch (Exception ex) { localName = "Unknown Client"; }
                 out.writeObject(localName);
                 out.flush();
-            } catch (IOException ex) {
-            }
+            } catch (IOException ex) {}
         }
         private void handleRemoteEvent(RemoteEvent evt, Robot robot) {
             if (evt.type == RemoteEvent.Type.MOUSE) {
                 Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-                int realX = (int) (((double) evt.x / evt.displayWidth) * screenSize.width);
-                int realY = (int) (((double) evt.y / evt.displayHeight) * screenSize.height);
+                int realX = (int)(((double)evt.x/evt.displayWidth)*screenSize.width);
+                int realY = (int)(((double)evt.y/evt.displayHeight)*screenSize.height);
                 robot.mouseMove(realX, realY);
                 if (evt.mouseID == MouseEvent.MOUSE_PRESSED) {
-                    if (evt.button == MouseEvent.BUTTON1)
-                        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-                    else if (evt.button == MouseEvent.BUTTON3)
-                        robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+                    if (evt.button == MouseEvent.BUTTON1) robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+                    else if (evt.button == MouseEvent.BUTTON3) robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
                 } else if (evt.mouseID == MouseEvent.MOUSE_RELEASED) {
-                    if (evt.button == MouseEvent.BUTTON1)
-                        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-                    else if (evt.button == MouseEvent.BUTTON3)
-                        robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+                    if (evt.button == MouseEvent.BUTTON1) robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+                    else if (evt.button == MouseEvent.BUTTON3) robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
                 }
             } else if (evt.type == RemoteEvent.Type.KEYBOARD) {
-                if (evt.keyID == KeyEvent.KEY_PRESSED)
-                    robot.keyPress(evt.keyCode);
-                else if (evt.keyID == KeyEvent.KEY_RELEASED)
-                    robot.keyRelease(evt.keyCode);
+                if (evt.keyID == KeyEvent.KEY_PRESSED) robot.keyPress(evt.keyCode);
+                else if (evt.keyID == KeyEvent.KEY_RELEASED) robot.keyRelease(evt.keyCode);
             }
         }
         public void sendChatMessage(String text) {
@@ -527,64 +434,40 @@ public class SingleLauncher extends JFrame {
                 msg.chatText = text;
                 out.writeObject(msg);
                 out.flush();
-            } catch (IOException ex) {
-            }
+            } catch (IOException ex) {}
         }
         public void sendFileMessage(File file) {
             try {
                 byte[] data = readFile(file);
-                if (data == null)
-                    return;
+                if (data == null) return;
                 RemoteMessage msg = new RemoteMessage();
                 msg.type = RemoteMessage.MessageType.FILE;
                 msg.fileName = file.getName();
                 msg.fileData = data;
                 out.writeObject(msg);
                 out.flush();
-            } catch (IOException ex) {
-            }
+            } catch (IOException ex) {}
         }
         private byte[] readFile(File file) {
             try {
-                byte[] fileBytes = new byte[(int) file.length()];
+                byte[] fileBytes = new byte[(int)file.length()];
                 try (FileInputStream fis = new FileInputStream(file)) {
                     int read = fis.read(fileBytes);
-                    if (read != fileBytes.length)
-                        return null;
+                    if (read != fileBytes.length) return null;
                     return fileBytes;
                 }
-            } catch (IOException ex) {
-                return null;
-            }
+            } catch (IOException ex) { return null; }
         }
         public void openChatWindow() {
-            if (chatWindow == null) {
-                chatWindow = new ClientChatWindow(this);
-            }
-            if (!chatWindow.isVisible()) {
-                chatWindow.setVisible(true);
-            }
+            if (chatWindow == null) chatWindow = new ClientChatWindow(this);
+            if (!chatWindow.isVisible()) chatWindow.setVisible(true);
         }
         public void stopConnection() {
             running = false;
-            try {
-                if (in != null)
-                    in.close();
-            } catch (IOException ex) {
-            }
-            try {
-                if (out != null)
-                    out.close();
-            } catch (IOException ex) {
-            }
-            try {
-                if (socket != null && !socket.isClosed())
-                    socket.close();
-            } catch (IOException ex) {
-            }
-            SwingUtilities.invokeLater(() -> {
-                System.exit(0);
-            });
+            try { if (in != null) in.close(); } catch (IOException ex) {}
+            try { if (out != null) out.close(); } catch (IOException ex) {}
+            try { if (socket != null && !socket.isClosed()) socket.close(); } catch (IOException ex) {}
+            SwingUtilities.invokeLater(() -> System.exit(0));
             conn.setOnline(false);
         }
     }
@@ -602,40 +485,25 @@ public class SingleLauncher extends JFrame {
             add(infoLabel, BorderLayout.NORTH);
             JPanel btnPanel = new JPanel();
             openChatButton = new JButton("Open Chat");
-            openChatButton.addActionListener(e -> {
-                if (controller != null) {
-                    controller.openChatWindow();
-                }
-            });
+            openChatButton.addActionListener(e -> { if (controller != null) controller.openChatWindow(); });
             sendFileButton = new JButton("Send File");
             sendFileButton.addActionListener(e -> {
                 JFileChooser fc = new JFileChooser();
                 if (fc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
                     File file = fc.getSelectedFile();
                     final long MAX_FILE_SIZE = 10 * 1024 * 1024;
-                    if (file.length() <= MAX_FILE_SIZE) {
-                        if (controller != null) {
-                            controller.sendFileMessage(file);
-                        }
-                    } else {
-                        JOptionPane.showMessageDialog(this, "File exceeds 10 MB limit.");
-                    }
+                    if (file.length() <= MAX_FILE_SIZE) { if (controller != null) controller.sendFileMessage(file); }
+                    else JOptionPane.showMessageDialog(this, "File exceeds 10 MB limit.");
                 }
             });
             stopConnButton = new JButton("Stop Connection");
-            stopConnButton.addActionListener(e -> {
-                if (controller != null) {
-                    controller.stopConnection();
-                }
-            });
+            stopConnButton.addActionListener(e -> { if (controller != null) controller.stopConnection(); });
             btnPanel.add(openChatButton);
             btnPanel.add(sendFileButton);
             btnPanel.add(stopConnButton);
             add(btnPanel, BorderLayout.SOUTH);
         }
-        public void setController(RemoteDesktopClient c) {
-            controller = c;
-        }
+        public void setController(RemoteDesktopClient c) { controller = c; }
     }
     static class ClientChatWindow extends JFrame {
         private JTextArea chatArea;
@@ -667,14 +535,10 @@ public class SingleLauncher extends JFrame {
                 }
             });
         }
-        public void appendChatMessage(String msg) {
-            chatArea.append(msg + "\n");
-        }
+        public void appendChatMessage(String msg) { chatArea.append(msg + "\n"); }
     }
     static class RemoteEvent implements Serializable {
-        enum Type {
-            MOUSE, KEYBOARD
-        }
+        enum Type { MOUSE, KEYBOARD }
         public Type type;
         public int mouseID;
         public int button;
@@ -685,9 +549,7 @@ public class SingleLauncher extends JFrame {
         public char keyChar;
     }
     static class RemoteMessage implements Serializable {
-        enum MessageType {
-            CHAT, FILE
-        }
+        enum MessageType { CHAT, FILE }
         public MessageType type;
         public String chatText;
         public String fileName;
@@ -702,21 +564,11 @@ public class SingleLauncher extends JFrame {
             this.port = port;
             this.online = false;
         }
-        public String getIp() {
-            return ip;
-        }
-        public int getPort() {
-            return port;
-        }
-        public void setOnline(boolean online) {
-            this.online = online;
-        }
-        public boolean isOnline() {
-            return online;
-        }
-        public String toString() {
-            return ip + ":" + port + " - " + (online ? "Online" : "Offline");
-        }
+        public String getIp() { return ip; }
+        public int getPort() { return port; }
+        public void setOnline(boolean online) { this.online = online; }
+        public boolean isOnline() { return online; }
+        public String toString() { return ip + ":" + port + " - " + (online ? "Online" : "Offline"); }
     }
     static class ClientLauncher extends JFrame {
         private JComboBox<ConnectionEntry> connectionCombo;
@@ -760,9 +612,8 @@ public class SingleLauncher extends JFrame {
             connectBtn.addActionListener((ActionEvent e) -> {
                 String ip = connectionCombo.getEditor().getItem().toString().trim();
                 int port;
-                try {
-                    port = Integer.parseInt(portField.getText().trim());
-                } catch (NumberFormatException ex) {
+                try { port = Integer.parseInt(portField.getText().trim()); }
+                catch (NumberFormatException ex) {
                     JOptionPane.showMessageDialog(this, "Invalid port number");
                     return;
                 }
@@ -795,19 +646,15 @@ public class SingleLauncher extends JFrame {
             int online = 0, offline = 0;
             for (int i = 0; i < comboModel.getSize(); i++) {
                 ConnectionEntry ce = comboModel.getElementAt(i);
-                if (ce.isOnline())
-                    online++;
-                else
-                    offline++;
+                if (ce.isOnline()) online++;
+                else offline++;
             }
             statusLabel.setText("Online: " + online + "   Offline: " + offline);
         }
         private List<ConnectionEntry> loadConnections() {
             List<ConnectionEntry> list = new ArrayList<>();
             File file = new File(CONNECTIONS_FILE);
-            if (!file.exists()) {
-                return list;
-            }
+            if (!file.exists()) return list;
             try (BufferedReader br = new BufferedReader(new FileReader(file))) {
                 String line;
                 while ((line = br.readLine()) != null) {
@@ -818,8 +665,7 @@ public class SingleLauncher extends JFrame {
                         list.add(new ConnectionEntry(ip, port));
                     }
                 }
-            } catch (IOException | NumberFormatException ex) {
-            }
+            } catch (IOException | NumberFormatException ex) {}
             return list;
         }
         private void saveConnections(List<ConnectionEntry> list) {
@@ -827,9 +673,7 @@ public class SingleLauncher extends JFrame {
                 for (ConnectionEntry ce : list) {
                     pw.println(ce.getIp() + ":" + ce.getPort());
                 }
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
+            } catch (IOException ex) { ex.printStackTrace(); }
         }
     }
 }
